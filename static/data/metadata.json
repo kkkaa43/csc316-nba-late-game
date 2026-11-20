@@ -3,23 +3,29 @@
   "source": "SportsDataverse / hoopR ESPN NBA play-by-play",
   "source_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_nba_pbp/play_by_play_2025.parquet",
   "source_sha256": "71d7d02671268f793f13a13d1a8a271cba1241cd9ba28c3a363a3f16ad56acc7",
+  "built": "2026-11-20",
   "season_end_year": 2025,
-  "regular_season_games": 1231,
-  "q4_events": 149654,
-  "trailing_q4_field_goal_attempts": 26739,
+  "regular_season_games": 1230,
+  "excluded_games": {
+    "401734908": "NBA Cup final, 2024-12-17 (does not count toward regular-season records)"
+  },
+  "q4_events": 149545,
+  "trailing_q4_field_goal_attempts": 26716,
   "rows_per_table": {
     "three_point.csv": 16,
     "fingerprint.csv": 16,
-    "accuracy_draft.csv": 16,
-    "teams_draft.csv": 30,
-    "pace_draft.csv": 963
+    "accuracy.csv": 16,
+    "team_states.csv": 480,
+    "pace.csv": 1197
   },
   "definitions": {
-    "three_share": "3PA / FGA (pre-event score)",
-    "shots_per_min": "Q4 trailing-team FGA per exposed minute",
-    "turnovers_per_min": "turnovers per exposed trailing-team minute",
-    "comeback_rate": "fraction of unique trailing team-games in cell that ultimately won",
-    "exposure_seconds": "duration between events assigned to their post-event state",
-    "time": "minutes remaining in fourth quarter"
+    "deficit": "points behind before the event, binned 1–3 / 4–6 / 7–10 / 11+",
+    "time": "minutes left in the fourth quarter, binned 9–12 / 6–9 / 3–6 / 0–3 (0–3 includes 3:00)",
+    "three_share": "three-point attempts / field-goal attempts of the trailing team",
+    "shots_per_min": "trailing-team field-goal attempts per minute spent trailing in the cell",
+    "turnovers_per_min": "trailing-team turnovers per minute spent trailing in the cell",
+    "fg_pct": "made field goals / field-goal attempts of the trailing team",
+    "comeback_rate": "share of distinct trailing team-games in the cell whose team won (overtime included)",
+    "exposure_seconds": "game-clock seconds in which a team trailed by the cell deficit inside the cell time window"
   }
 }

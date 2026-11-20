@@ -1,6 +1,7 @@
 <script>
   import * as d3 from 'd3';
   import {onMount} from 'svelte';
+  import {base} from '$app/paths';
   import ThreePointChart from '$lib/components/ThreePointChart.svelte';
   import FingerprintMap from '$lib/components/FingerprintMap.svelte';
   import ComebackHeatmap from '$lib/components/ComebackHeatmap.svelte';
@@ -9,9 +10,9 @@
   onMount(async()=>{
     try{
       const [a,b,c]=await Promise.all([
-        d3.csv('/data/three_point.csv',d3.autoType),
-        d3.csv('/data/fingerprint.csv',d3.autoType),
-        d3.json('/data/metadata.json')
+        d3.csv(`${base}/data/three_point.csv`,d3.autoType),
+        d3.csv(`${base}/data/fingerprint.csv`,d3.autoType),
+        d3.json(`${base}/data/metadata.json`)
       ]);
       three=a;fingerprints=b;meta=c;
     }catch(e){error=`Unable to load chart data: ${e.message}`;}

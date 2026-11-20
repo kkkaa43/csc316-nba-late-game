@@ -1,49 +1,102 @@
 <script>
+  // J1: three-point share of the trailing team's field-goal attempts, by deficit (x) and
+  // time window (one line each). Points are buttons that select the game state everywhere.
   import * as d3 from 'd3';
+  import { DEFICITS, TIMES, TIME_COLORS, selection, selectState, isSelected, asButton, restoreFocus, pct } from '$lib/state.svelte.js';
+
   let { data = [] } = $props();
   let node;
-  let active = $state('All time windows');
+  let focusKey = null;
   let hovered = $state(null);
-  const times = ['9–12', '6–9', '3–6', '0–3'];
-  const groups = ['1–3', '4–6', '7–10', '11+'];
-  const colors = {'9–12':'#7a99b4','6–9':'#48a6a4','3–6':'#f1bd74','0–3':'#ec7148'};
-  function render(rows, selectedTime) {
+  let pinnedTime = $state(null); // legend toggle, local to this chart
+  const emphasis = $derived(selection.time ?? pinnedTime);
+  const shown = $derived(hovered ?? data.find((d) => isSelected(d)));
+
+  function render(rows, emph) {
     if (!node || !rows?.length) return;
-    const svg=d3.select(node); svg.selectAll('*').remove();
-    const W=720,H=352,m={top:24,right:28,bottom:58,left:66};
-    svg.attr('viewBox',`0 0 ${W} ${H}`).attr('role','img').attr('aria-label','Line chart of three-point shot share by deficit and fourth-quarter time window');
-    const x=d3.scalePoint().domain(groups).range([m.left,W-m.right]).padding(.5);
-    // Zoom the y-axis to the observed range (snapped to 5% steps) so differences of a few
-    // percentage points stay visible; the axis label notes that it does not start at 0%.
-    const [lo,hi]=d3.extent(rows.filter(d=>Number.isFinite(d.three_share)),d=>d.three_share);
-    const yMin=Math.max(0,Math.floor((lo-.02)*20)/20), yMax=Math.min(1,Math.ceil((hi+.02)*20)/20);
-    const y=d3.scaleLinear().domain([yMin,yMax]).range([H-m.bottom,m.top]);
-    const yTicks=d3.range(yMin,yMax+1e-9,.05);
-    const body=svg.append('g');
-    body.append('g').selectAll('line').data(yTicks).join('line')
-      .attr('x1',m.left).attr('x2',W-m.right).attr('y1',d=>y(d)).attr('y2',d=>y(d)).attr('stroke','#dfe6ec').attr('stroke-dasharray',(d,i)=>i===0?'0':'3,6');
-    body.append('g').attr('transform',`translate(0,${H-m.bottom})`).call(d3.axisBottom(x).tickSize(0)).call(a=>a.select('.domain').attr('stroke','#8d9aac')).call(a=>a.selectAll('text').attr('dy','1.65em').attr('fill','#637288').attr('font-size',13));
-    body.append('g').attr('transform',`translate(${m.left},0)`).call(d3.axisLeft(y).tickValues(yTicks).tickFormat(d3.format('.0%')).tickSize(0)).call(a=>a.select('.domain').remove()).call(a=>a.selectAll('text').attr('dx','-.6em').attr('fill','#637288').attr('font-size',12));
-    body.append('text').attr('x',(m.left+W-m.right)/2).attr('y',H-6).attr('text-anchor','middle').attr('fill','#536277').attr('font-size',12).text('Score deficit before the attempt (points)');
-    body.append('text').attr('transform',`translate(18,${(H-m.bottom+m.top)/2}) rotate(-90)`).attr('text-anchor','middle').attr('fill','#536277').attr('font-size',12).text(yMin>0?`Three-point share of FGA (axis starts at ${Math.round(yMin*100)}%)`:'Three-point share of FGA');
-    const line=d3.line().defined(d=>Number.isFinite(d.three_share)).x(d=>x(d.deficit)).y(d=>y(d.three_share)).curve(d3.curveMonotoneX);
-    for(const t of times){
-      const s=groups.map(g=>rows.find(d=>d.deficit===g && d.time===t) ?? {deficit:g,three_share:NaN});
-      const visible=selectedTime==='All time windows'||selectedTime===t;
-      body.append('path').datum(s).attr('d',line).attr('fill','none').attr('stroke',colors[t]).attr('stroke-width',selectedTime===t?4:3).attr('opacity',visible?1:.12).attr('stroke-linejoin','round');
-      body.selectAll('.dot'+times.indexOf(t)).data(s.filter(d=>Number.isFinite(d.three_share))).join('circle')
-        .attr('cx',d=>x(d.deficit)).attr('cy',d=>y(d.three_share)).attr('r',selectedTime===t?6:4.6).attr('fill',colors[t])
-        .attr('stroke','#fff').attr('stroke-width',2).attr('opacity',visible?1:.12)
-        .style('cursor',visible?'pointer':'default')
-        .on('mouseenter',(_,d)=>{if(visible)hovered={...d, time:t};})
-        .on('mouseleave',()=>hovered=null)
-        .append('title').text(d=>`${t} min left, ${d.deficit} behind: ${(d.three_share*100).toFixed(1)}% (n=${d.attempts})`);
+    const svg = d3.select(node);
+    svg.selectAll('*').remove();
+    const W = 720, H = 380, m = { top: 26, right: 92, bottom: 58, left: 70 };
+    svg.attr('viewBox', `0 0 ${W} ${H}`);
+    const x = d3.scalePoint().domain(DEFICITS).range([m.left, W - m.right]).padding(0.35);
+    // Zoom the y-axis to the observed range (5% steps) so differences of a few points stay
+    // visible; the axis title says where it starts.
+    const [lo, hi] = d3.extent(rows, (d) => d.three_share);
+    const yMin = Math.max(0, Math.floor((lo - 0.02) * 20) / 20), yMax = Math.min(1, Math.ceil((hi + 0.02) * 20) / 20);
+    const y = d3.scaleLinear().domain([yMin, yMax]).range([H - m.bottom, m.top]);
+    const ticks = d3.range(yMin, yMax + 1e-9, 0.05);
+    svg.append('g').selectAll('line').data(ticks).join('line')
+      .attr('x1', m.left).attr('x2', W - m.right).attr('y1', y).attr('y2', y)
+      .attr('stroke', '#e3e9ee').attr('stroke-dasharray', (d, i) => (i === 0 ? null : '3,5'));
+    svg.append('g').attr('transform', `translate(0,${H - m.bottom})`).call(d3.axisBottom(x).tickSize(0).tickFormat((d) => `${d} pts`))
+      .call((a) => a.select('.domain').attr('stroke', '#8d9aac'))
+      .call((a) => a.selectAll('text').attr('dy', '1.4em').attr('fill', '#4d5e70').attr('font-size', 13));
+    svg.append('g').attr('transform', `translate(${m.left},0)`).call(d3.axisLeft(y).tickValues(ticks).tickFormat(d3.format('.0%')).tickSize(0))
+      .call((a) => a.select('.domain').remove()).call((a) => a.selectAll('text').attr('dx', '-.5em').attr('fill', '#4d5e70').attr('font-size', 12));
+    svg.append('text').attr('x', (m.left + W - m.right) / 2).attr('y', H - 8).attr('text-anchor', 'middle').attr('fill', '#4d5e70').attr('font-size', 12)
+      .text('Points behind before the shot');
+    svg.append('text').attr('transform', `translate(18,${(H - m.bottom + m.top) / 2}) rotate(-90)`).attr('text-anchor', 'middle').attr('fill', '#4d5e70').attr('font-size', 12)
+      .text(`Threes as % of field-goal attempts${yMin > 0 ? ` (axis starts at ${Math.round(yMin * 100)}%)` : ''}`);
+
+    // Annotation on the highest point of the chart.
+    const peak = d3.greatest(rows, (d) => d.three_share);
+    if (peak) {
+      const px = x(peak.deficit), py = y(peak.three_share);
+      svg.append('line').attr('x1', px + 10).attr('y1', py - 4).attr('x2', px + 46).attr('y2', py - 16).attr('stroke', '#7b8794');
+      svg.append('text').attr('x', px + 50).attr('y', py - 22).attr('font-size', 11.5).attr('fill', '#33475b').attr('font-weight', 700)
+        .text(`${pct(peak.three_share)}: the highest share`);
+      svg.append('text').attr('x', px + 50).attr('y', py - 8).attr('font-size', 11).attr('fill', '#4d5e70')
+        .text(`down ${peak.deficit}, ${peak.time} min left`);
     }
+
+    // End-of-line labels, nudged apart so they never overlap.
+    const ends = TIMES.map((t) => ({ t, d: rows.find((d) => d.deficit === DEFICITS.at(-1) && d.time === t) })).filter((e) => e.d)
+      .map((e) => ({ ...e, y: y(e.d.three_share) })).sort((a, b) => a.y - b.y);
+    for (let i = 1; i < ends.length; i++) ends[i].y = Math.max(ends[i].y, ends[i - 1].y + 15);
+    const labelY = Object.fromEntries(ends.map((e) => [e.t, e.y]));
+    const line = d3.line().x((d) => x(d.deficit)).y((d) => y(d.three_share)).curve(d3.curveMonotoneX);
+    for (const t of TIMES) {
+      const series = DEFICITS.map((g) => rows.find((d) => d.deficit === g && d.time === t)).filter(Boolean);
+      const on = !emph || emph === t;
+      const g = svg.append('g').attr('opacity', on ? 1 : 0.18);
+      g.append('path').datum(series).attr('d', line).attr('fill', 'none').attr('stroke', TIME_COLORS[t])
+        .attr('stroke-width', emph === t ? 4 : 3).attr('stroke-linejoin', 'round');
+      const last = series[series.length - 1];
+      g.append('text').attr('x', x(last.deficit) + 12).attr('y', labelY[t] ?? y(last.three_share)).attr('dominant-baseline', 'middle')
+        .attr('font-size', 12).attr('font-weight', 700).attr('fill', TIME_COLORS[t]).text(`${t} min`);
+      const dots = g.selectAll('g.pt').data(series).join('g').attr('class', 'pt')
+        .attr('transform', (d) => `translate(${x(d.deficit)},${y(d.three_share)})`)
+        .on('mouseenter', (_, d) => (hovered = d)).on('mouseleave', () => (hovered = null));
+      asButton(dots, {
+        label: (d) => `Down ${d.deficit} with ${d.time} minutes left: ${pct(d.three_share)} of ${d.attempts} attempts were threes`,
+        key: (d) => `${d.deficit}|${d.time}`,
+        onActivate: (d) => { focusKey = `${d.deficit}|${d.time}`; selectState(d.deficit, d.time); }
+      });
+      dots.append('circle').attr('r', 14).attr('fill', 'transparent'); // larger hit area
+      dots.append('circle').attr('r', (d) => (isSelected(d) ? 8 : 5)).attr('fill', TIME_COLORS[t])
+        .attr('stroke', (d) => (isSelected(d) ? '#17273b' : '#fff')).attr('stroke-width', (d) => (isSelected(d) ? 3 : 2));
+    }
+    restoreFocus(node, focusKey);
+    focusKey = null;
   }
-  $effect(()=>render(data,active));
+  $effect(() => render(data, emphasis, selection.deficit, selection.time));
 </script>
-<div class="chart-controls"><div class="chart-legend">
- {#each times as t}<span class="legend-entry"><i style={`background:${colors[t]}`}></i>{t} min</span>{/each}
-</div><label class="select-wrap"><span class="sr-only">Highlight time window</span><select bind:value={active}><option>All time windows</option>{#each times as t}<option value={t}>{t} minutes left</option>{/each}</select></label></div>
-<div class="chart-surface"><svg bind:this={node}></svg></div>
-<div class="chart-detail" aria-live="polite">{#if hovered}<strong>{(hovered.three_share*100).toFixed(1)}% 3PA share</strong> with {hovered.time} minutes left and {hovered.deficit} point deficit · {hovered.attempts} field-goal attempts{:else}Hover over a point to inspect the percentage and sample size.{/if}</div>
+
+<div class="chart-controls">
+  <div class="chart-legend" role="group" aria-label="Highlight a time window">
+    {#each TIMES as t}
+      <button class="legend-entry legend-button" class:active={emphasis === t} aria-pressed={pinnedTime === t}
+        onclick={() => (pinnedTime = pinnedTime === t ? null : t)}>
+        <i style={`background:${TIME_COLORS[t]}`}></i>{t} min left
+      </button>
+    {/each}
+  </div>
+</div>
+<div class="chart-surface scroll-x"><svg bind:this={node} role="group" aria-label="Line chart: three-point share of field-goal attempts by points behind, one line per time window"></svg></div>
+<div class="chart-detail" aria-live="polite">
+  {#if shown}
+    Down <strong>{shown.deficit} pts</strong> with <strong>{shown.time} min</strong> left: <strong>{pct(shown.three_share)}</strong> of {shown.attempts.toLocaleString()} field-goal attempts were threes ({shown.three_attempts.toLocaleString()} 3PA).
+  {:else}
+    Hover a point for exact values; click it to select that game state in every chart. Use the legend to highlight one time window.
+  {/if}
+</div>

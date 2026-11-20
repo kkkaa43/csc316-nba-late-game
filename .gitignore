@@ -1,0 +1,14 @@
+node_modules
+.svelte-kit
+build
+.DS_Store
+*.log
+__pycache__
+data/raw/*.parquet
+.venv
+.claude
+# Regenerable intermediate data (rebuild with scripts/build_data.py)
+data/cleaned/q4_events.csv
+# Process-book exports contain team members' emails; keep them out of the public repo
+process_book/CSC316_Updated_Process_Book_V1.pdf
+reference/CSC316_Previous_Milestones.pdf

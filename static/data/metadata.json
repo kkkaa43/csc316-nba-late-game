@@ -1,0 +1,25 @@
+{
+  "status": "real",
+  "source": "SportsDataverse / hoopR ESPN NBA play-by-play",
+  "source_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_nba_pbp/play_by_play_2025.parquet",
+  "source_sha256": "71d7d02671268f793f13a13d1a8a271cba1241cd9ba28c3a363a3f16ad56acc7",
+  "season_end_year": 2025,
+  "regular_season_games": 1231,
+  "q4_events": 149654,
+  "trailing_q4_field_goal_attempts": 26739,
+  "rows_per_table": {
+    "three_point.csv": 16,
+    "fingerprint.csv": 16,
+    "accuracy_draft.csv": 16,
+    "teams_draft.csv": 30,
+    "pace_draft.csv": 963
+  },
+  "definitions": {
+    "three_share": "3PA / FGA (pre-event score)",
+    "shots_per_min": "Q4 trailing-team FGA per exposed minute",
+    "turnovers_per_min": "turnovers per exposed trailing-team minute",
+    "comeback_rate": "fraction of unique trailing team-games in cell that ultimately won",
+    "exposure_seconds": "duration between events assigned to their post-event state",
+    "time": "minutes remaining in fourth quarter"
+  }
+}

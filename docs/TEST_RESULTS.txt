@@ -1,0 +1,10 @@
+test_aggregations_and_valid_finals (test_pipeline.TestDataPipeline.test_aggregations_and_valid_finals) ... ok
+test_pre_shot_score_and_score_bins (test_pipeline.TestDataPipeline.test_pre_shot_score_and_score_bins) ... ok
+test_reject_no_complete_games (test_pipeline.TestDataPipeline.test_reject_no_complete_games) ... ok
+test_reject_unknown_schema (test_pipeline.TestDataPipeline.test_reject_unknown_schema) ... ok
+test_unique_game_states_and_exposure (test_pipeline.TestDataPipeline.test_unique_game_states_and_exposure) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.114s
+
+OK
